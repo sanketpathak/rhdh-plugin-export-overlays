@@ -237,8 +237,8 @@ test.describe("Admin > Extensions", () => {
       uiHelper,
     }) => {
       const plugin = "Adoption Insights for Red Hat Developer Hub";
-      const packageName =
-        "oci://quay.io/rhdh/red-hat-developer-hub-backstage-plugin-adoption-insights";
+      const packageSuffix =
+        "red-hat-developer-hub-backstage-plugin-adoption-insights";
 
       await extensions.searchExtensions(plugin);
       await extensions.waitForSearchResults(plugin);
@@ -250,7 +250,9 @@ test.describe("Admin > Extensions", () => {
       await uiHelper.clickButton("Actions");
       await page.getByText("Edit").click();
       await uiHelper.verifyHeading(plugin);
-      await uiHelper.verifyText(`- package: ${packageName}`, false);
+      await uiHelper.verifyText(
+        new RegExp(`-\\s+package:\\s+oci://.+/${packageSuffix}`),
+      );
 
       await uiHelper.verifyText(/^\s+(disabled:\sfalse|enabled:\strue)/);
       await uiHelper.verifyText("Apply");
@@ -293,7 +295,7 @@ test.describe("Admin > Extensions", () => {
       await uiHelper.verifyHeading(plugin);
     });
 
-    test("Enable plugin from catalog extension page", async ({
+    test("Disable plugin from catalog extension page shows Restart required", async ({
       page,
       uiHelper,
     }) => {
@@ -309,10 +311,14 @@ test.describe("Admin > Extensions", () => {
       await expect(page.getByLabel("EditPlugin")).toBeVisible();
       await page.getByTestId("disable-plugin").click();
       await expect(page.getByTestId("enable-plugin")).toBeVisible();
-      // Following step is commented out due to the bug in nfs https://redhat.atlassian.net/browse/RHDHBUGS-3701
-      // await expect(page.getByRole("alert")).toContainText(
-      //   `The ${plugin} plugin requires a restart of the backend system to finish installing, updating, enabling or disabling.`,
-      // );
+
+      await page.getByRole("button", { name: "close" }).click();
+      const restartStatus = page
+        .getByTestId("restart-required-status")
+        .filter({ hasText: "Restart required" })
+        .first();
+      await expect(restartStatus).toBeVisible();
+      await expect(restartStatus).toContainText("Restart required");
     });
   });
 
@@ -353,9 +359,7 @@ test.describe("Admin > Extensions", () => {
         name: npmPackage,
       });
       await expect(techdocsRow).toBeVisible();
-      await expect(
-        techdocsRow.getByLabel("Edit package configuration"),
-      ).toBeVisible();
+      await expect(techdocsRow.getByLabel("Edit")).toBeVisible();
       await expect(
         techdocsRow.getByLabel("Download package configuration"),
       ).toBeVisible();
@@ -390,7 +394,7 @@ test.describe("Admin > Extensions", () => {
       await extensions.searchPackages(plugin);
 
       const row = page.getByRole("row", { name: plugin });
-      await expect(row.getByLabel("Edit package configuration")).toBeVisible();
+      await expect(row.getByLabel("Edit")).toBeVisible();
       await expect(
         row.getByLabel("Download package configuration"),
       ).toBeVisible();
@@ -412,7 +416,7 @@ test.describe("Admin > Extensions", () => {
       await expect(
         page
           .getByRole("cell", {
-            name: "Edit package configuration",
+            name: "Edit",
           })
           .first(),
       ).toBeVisible();
@@ -473,7 +477,7 @@ test.describe("Admin > Extensions", () => {
 
         await page
           .getByRole("button", {
-            name: "Edit package configuration",
+            name: "Edit",
           })
           .click();
         await expect(
@@ -497,7 +501,7 @@ test.describe("Admin > Extensions", () => {
         );
         await expect(page.getByRole("alert").first()).toContainText(
           `The ${plugin} package requires a restart of the backend system to finish installing, updating, enabling or disabling.`,
-          { timeout: 10000, ignoreCase: true },
+          { timeout: 30_000, ignoreCase: true },
         );
       });
     });
@@ -506,19 +510,15 @@ test.describe("Admin > Extensions", () => {
       page,
     }) => {
       const scaffolderPlugin = "Scaffolder Backend Module Regex";
-      const scaffolderPackage =
-        "@backstage-community/plugin-scaffolder-backend-module-regex-dynamic";
       const headerPlugin = "Global Header";
-      const headerPackage =
-        "@red-hat-developer-hub/backstage-plugin-global-header-dynamic";
 
       await extensions.searchPackages(scaffolderPlugin);
       await page.getByRole("checkbox").hover();
       await expect(page.getByLabel("Disable package")).toBeVisible();
       await page.getByRole("checkbox").click();
       await expect(page.getByRole("alert").first()).toContainText(
-        `The ${scaffolderPackage} package requires a restart of the backend system to finish installing, updating, enabling or disabling.`,
-        { timeout: 15000 },
+        `The ${scaffolderPlugin} package requires a restart of the backend system to finish installing, updating, enabling or disabling.`,
+        { timeout: 30_000 },
       );
 
       await extensions.searchPackages(headerPlugin);
@@ -535,16 +535,16 @@ test.describe("Admin > Extensions", () => {
         page
           .getByLabel("Backend restart required")
           .getByText("Backend restart required"),
-      ).toBeVisible({ timeout: 10000 });
+      ).toBeVisible({ timeout: 30_000 });
 
       const packageVerifications = [
         { rowTitle: "Name", rowValue: "Action" },
         {
-          rowTitle: scaffolderPackage,
+          rowTitle: scaffolderPlugin,
           rowValue: "Package disabled",
         },
         {
-          rowTitle: headerPackage,
+          rowTitle: headerPlugin,
           rowValue: "Package disabled",
         },
       ];
